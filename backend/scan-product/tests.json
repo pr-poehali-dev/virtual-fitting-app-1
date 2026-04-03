@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Missing URL returns 400",
+      "method": "POST",
+      "path": "/",
+      "body": {},
+      "expectedStatus": 400
+    },
+    {
+      "name": "Unknown marketplace returns 400",
+      "method": "POST",
+      "path": "/",
+      "body": { "url": "https://example.com/product/123" },
+      "expectedStatus": 400
+    }
+  ]
+}

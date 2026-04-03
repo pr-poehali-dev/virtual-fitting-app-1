@@ -2,7 +2,57 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { AVATAR_IMG, CLOTHES_IMG, historyItems, favoritesItems } from "@/components/constants";
 
-export function ScanSection({ scanning, scanDone, onScan }: { scanning: boolean; scanDone: boolean; onScan: () => void }) {
+const SCAN_API = "https://functions.poehali.dev/2c0579a1-2652-4c03-b52e-89035b911bc1";
+
+interface ProductResult {
+  name: string;
+  brand: string;
+  price: string;
+  image: string;
+  marketplace: string;
+  url: string;
+}
+
+export function ScanSection() {
+  const [url, setUrl] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [product, setProduct] = useState<ProductResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [added, setAdded] = useState(false);
+
+  const handleScan = async () => {
+    if (!url.trim()) return;
+    setScanning(true);
+    setProduct(null);
+    setError(null);
+    setAdded(false);
+
+    try {
+      const resp = await fetch(SCAN_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        setError(data.error || "Ошибка при получении товара");
+      } else {
+        setProduct(data);
+      }
+    } catch {
+      setError("Не удалось подключиться к серверу");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleReset = () => {
+    setUrl("");
+    setProduct(null);
+    setError(null);
+    setAdded(false);
+  };
+
   return (
     <div className="animate-fade-in space-y-5 pt-2">
       <div>
@@ -10,10 +60,13 @@ export function ScanSection({ scanning, scanDone, onScan }: { scanning: boolean;
         <p className="text-muted-foreground text-sm font-body mt-1">Загрузите товар с маркетплейса</p>
       </div>
 
+      {/* Preview / state area */}
       <div className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${scanning ? "glow-teal" : ""}`}
         style={{ height: 280 }}>
         <div className="absolute inset-0 glass flex flex-col items-center justify-center gap-4">
-          {!scanning && !scanDone && (
+
+          {/* Idle */}
+          {!scanning && !product && !error && (
             <>
               <div className="w-20 h-20 rounded-2xl glass flex items-center justify-center">
                 <Icon name="Camera" size={32} className="text-teal/70" />
@@ -23,23 +76,14 @@ export function ScanSection({ scanning, scanDone, onScan }: { scanning: boolean;
               </p>
             </>
           )}
-          {scanning && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full border-2 border-teal/30 border-t-teal animate-spin" />
-              <p className="text-teal font-body text-sm">Анализирую товар...</p>
-            </div>
-          )}
-          {scanDone && !scanning && (
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-16 h-16 rounded-full glass-active flex items-center justify-center">
-                <Icon name="CheckCircle2" size={28} className="text-teal" />
-              </div>
-              <p className="text-teal font-body font-medium text-sm">Товар добавлен в примерку</p>
-              <p className="text-muted-foreground font-body text-xs">Пальто оверсайз · Zara</p>
-            </div>
-          )}
+
+          {/* Scanning */}
           {scanning && (
             <>
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-16 h-16 rounded-full border-2 border-teal/30 border-t-teal animate-spin" />
+                <p className="text-teal font-body text-sm">Анализирую товар...</p>
+              </div>
               <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-teal rounded-tl-sm" />
               <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-teal rounded-tr-sm" />
               <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-teal rounded-bl-sm" />
@@ -47,37 +91,98 @@ export function ScanSection({ scanning, scanDone, onScan }: { scanning: boolean;
               <div className="absolute left-4 right-4 h-px bg-gradient-to-r from-transparent via-teal to-transparent animate-pulse" style={{ top: "50%" }} />
             </>
           )}
+
+          {/* Error */}
+          {error && !scanning && (
+            <div className="flex flex-col items-center gap-3 px-6 text-center">
+              <div className="w-14 h-14 rounded-full glass flex items-center justify-center">
+                <Icon name="AlertCircle" size={24} className="text-destructive" />
+              </div>
+              <p className="text-destructive font-body text-sm">{error}</p>
+              <button onClick={handleReset} className="text-xs text-muted-foreground font-body underline">
+                Попробовать снова
+              </button>
+            </div>
+          )}
+
+          {/* Product result */}
+          {product && !scanning && (
+            <div className="absolute inset-0 flex">
+              {product.image && (
+                <img src={product.image} alt={product.name}
+                  className="w-1/2 h-full object-cover opacity-70"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              )}
+              <div className={`flex flex-col justify-end p-4 ${product.image ? "w-1/2" : "w-full"}`}>
+                <span className="text-[9px] font-body text-teal/80 uppercase tracking-widest mb-1">{product.marketplace}</span>
+                {product.brand && <p className="text-xs font-body text-muted-foreground">{product.brand}</p>}
+                <p className="font-body font-semibold text-foreground text-sm leading-snug mt-0.5">{product.name}</p>
+                <p className="text-teal font-body font-bold text-base mt-1">{product.price}</p>
+              </div>
+              <div className="absolute inset-0" style={{
+                background: "linear-gradient(to right, transparent 30%, hsl(220,18%,9%) 100%)"
+              }} />
+            </div>
+          )}
         </div>
       </div>
 
+      {/* URL input */}
       <div className="glass rounded-2xl p-4 flex items-center gap-3">
         <Icon name="Link" size={16} className="text-muted-foreground flex-shrink-0" />
         <input
           type="text"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleScan()}
           placeholder="Вставьте ссылку с Ozon, Wildberries, Lamoda..."
           className="flex-1 bg-transparent text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none"
         />
+        {url && (
+          <button onClick={handleReset} className="text-muted-foreground hover:text-foreground transition-colors">
+            <Icon name="X" size={14} />
+          </button>
+        )}
       </div>
 
+      {/* Actions */}
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={onScan}
-          disabled={scanning}
-          className="glass-active rounded-2xl p-4 flex items-center justify-center gap-2 hover:glow-teal transition-all duration-300 disabled:opacity-50"
+          onClick={handleScan}
+          disabled={scanning || !url.trim()}
+          className="glass-active rounded-2xl p-4 flex items-center justify-center gap-2 hover:glow-teal transition-all duration-300 disabled:opacity-40"
         >
           <Icon name="ScanLine" size={16} className="text-teal" />
           <span className="font-body font-medium text-teal text-sm">{scanning ? "Сканирую..." : "Сканировать"}</span>
         </button>
-        <button className="glass rounded-2xl p-4 flex items-center justify-center gap-2 hover:bg-white/5 transition-all">
-          <Icon name="Upload" size={16} className="text-muted-foreground" />
-          <span className="font-body font-medium text-muted-foreground text-sm">Загрузить фото</span>
-        </button>
+
+        {product ? (
+          <button
+            onClick={() => setAdded(true)}
+            disabled={added}
+            className={`rounded-2xl p-4 flex items-center justify-center gap-2 transition-all duration-300 ${
+              added ? "glass text-muted-foreground" : "glass-active hover:glow-teal-sm"
+            }`}
+          >
+            <Icon name={added ? "Check" : "Plus"} size={16} className={added ? "text-muted-foreground" : "text-teal"} />
+            <span className={`font-body font-medium text-sm ${added ? "text-muted-foreground" : "text-teal"}`}>
+              {added ? "Добавлено" : "В примерку"}
+            </span>
+          </button>
+        ) : (
+          <button className="glass rounded-2xl p-4 flex items-center justify-center gap-2 hover:bg-white/5 transition-all">
+            <Icon name="Upload" size={16} className="text-muted-foreground" />
+            <span className="font-body font-medium text-muted-foreground text-sm">Загрузить фото</span>
+          </button>
+        )}
       </div>
 
+      {/* Supported marketplaces */}
       <div className="glass rounded-2xl p-4">
         <p className="text-xs font-body text-muted-foreground mb-3">Поддерживаемые магазины</p>
         <div className="flex gap-2 flex-wrap">
-          {["Ozon", "Wildberries", "Lamoda", "Zara", "H&M", "Uniqlo"].map(m => (
+          {["Wildberries", "Ozon", "Lamoda", "Zara", "H&M", "Uniqlo"].map(m => (
             <span key={m} className="glass px-3 py-1 rounded-lg text-xs font-body text-muted-foreground">{m}</span>
           ))}
         </div>

@@ -8,16 +8,6 @@ import { ScanSection, FavoritesSection, HistorySection, ShareSection } from "@/c
 export default function Index() {
   const [activeSection, setActiveSection] = useState<Section>("tryon");
   const [rotateY, setRotateY] = useState(0);
-  const [scanDone, setScanDone] = useState(false);
-  const [scanning, setScanning] = useState(false);
-
-  const handleScan = () => {
-    setScanning(true);
-    setTimeout(() => {
-      setScanning(false);
-      setScanDone(true);
-    }, 2200);
-  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-hidden relative">
@@ -49,7 +39,7 @@ export default function Index() {
       <main className="flex-1 relative z-10 px-5 pb-28 overflow-y-auto">
         {activeSection === "tryon" && <TryOnSection rotateY={rotateY} setRotateY={setRotateY} />}
         {activeSection === "profile" && <ProfileSection />}
-        {activeSection === "scan" && <ScanSection scanning={scanning} scanDone={scanDone} onScan={handleScan} />}
+        {activeSection === "scan" && <ScanSection />}
         {activeSection === "favorites" && <FavoritesSection />}
         {activeSection === "history" && <HistorySection />}
         {activeSection === "share" && <ShareSection />}
