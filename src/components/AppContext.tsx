@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export interface ScannedProduct {
   id: string;
@@ -13,6 +13,19 @@ export interface ScannedProduct {
   favorited: boolean;
 }
 
+const STORAGE_KEY = "fitroom_products";
+
+function loadFromStorage(): ScannedProduct[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return parsed.map((p: ScannedProduct) => ({ ...p, addedAt: new Date(p.addedAt) }));
+  } catch {
+    return [];
+  }
+}
+
 interface AppContextValue {
   scannedProducts: ScannedProduct[];
   addProduct: (p: Omit<ScannedProduct, "id" | "addedAt" | "favorited">) => void;
@@ -23,7 +36,11 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [scannedProducts, setScannedProducts] = useState<ScannedProduct[]>([]);
+  const [scannedProducts, setScannedProducts] = useState<ScannedProduct[]>(loadFromStorage);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(scannedProducts));
+  }, [scannedProducts]);
 
   const addProduct = (p: Omit<ScannedProduct, "id" | "addedAt" | "favorited">) => {
     const product: ScannedProduct = {
