@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { AVATAR_IMG, CLOTHES_IMG, historyItems, favoritesItems } from "@/components/constants";
+import { AVATAR_IMG, CLOTHES_IMG } from "@/components/constants";
+import { useAppContext, ScannedProduct } from "@/components/AppContext";
 
 const SCAN_API = "https://functions.poehali.dev/2c0579a1-2652-4c03-b52e-89035b911bc1";
 
@@ -14,6 +15,7 @@ interface ProductResult {
 }
 
 export function ScanSection() {
+  const { addProduct } = useAppContext();
   const [url, setUrl] = useState("");
   const [scanning, setScanning] = useState(false);
   const [product, setProduct] = useState<ProductResult | null>(null);
@@ -46,6 +48,12 @@ export function ScanSection() {
     }
   };
 
+  const handleAddToTryOn = () => {
+    if (!product) return;
+    addProduct(product);
+    setAdded(true);
+  };
+
   const handleReset = () => {
     setUrl("");
     setProduct(null);
@@ -60,12 +68,10 @@ export function ScanSection() {
         <p className="text-muted-foreground text-sm font-body mt-1">Загрузите товар с маркетплейса</p>
       </div>
 
-      {/* Preview / state area */}
       <div className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${scanning ? "glow-teal" : ""}`}
         style={{ height: 280 }}>
         <div className="absolute inset-0 glass flex flex-col items-center justify-center gap-4">
 
-          {/* Idle */}
           {!scanning && !product && !error && (
             <>
               <div className="w-20 h-20 rounded-2xl glass flex items-center justify-center">
@@ -77,7 +83,6 @@ export function ScanSection() {
             </>
           )}
 
-          {/* Scanning */}
           {scanning && (
             <>
               <div className="flex flex-col items-center gap-4">
@@ -92,7 +97,6 @@ export function ScanSection() {
             </>
           )}
 
-          {/* Error */}
           {error && !scanning && (
             <div className="flex flex-col items-center gap-3 px-6 text-center">
               <div className="w-14 h-14 rounded-full glass flex items-center justify-center">
@@ -105,7 +109,6 @@ export function ScanSection() {
             </div>
           )}
 
-          {/* Product result */}
           {product && !scanning && (
             <div className="absolute inset-0 flex">
               {product.image && (
@@ -128,7 +131,6 @@ export function ScanSection() {
         </div>
       </div>
 
-      {/* URL input */}
       <div className="glass rounded-2xl p-4 flex items-center gap-3">
         <Icon name="Link" size={16} className="text-muted-foreground flex-shrink-0" />
         <input
@@ -146,7 +148,6 @@ export function ScanSection() {
         )}
       </div>
 
-      {/* Actions */}
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={handleScan}
@@ -159,7 +160,7 @@ export function ScanSection() {
 
         {product ? (
           <button
-            onClick={() => setAdded(true)}
+            onClick={handleAddToTryOn}
             disabled={added}
             className={`rounded-2xl p-4 flex items-center justify-center gap-2 transition-all duration-300 ${
               added ? "glass text-muted-foreground" : "glass-active hover:glow-teal-sm"
@@ -178,7 +179,6 @@ export function ScanSection() {
         )}
       </div>
 
-      {/* Supported marketplaces */}
       <div className="glass rounded-2xl p-4">
         <p className="text-xs font-body text-muted-foreground mb-3">Поддерживаемые магазины</p>
         <div className="flex gap-2 flex-wrap">
@@ -192,69 +192,64 @@ export function ScanSection() {
 }
 
 export function FavoritesSection() {
+  const { scannedProducts, toggleFavorite, removeProduct } = useAppContext();
+  const favorites = scannedProducts.filter(p => p.favorited);
+
   return (
     <div className="animate-fade-in space-y-5 pt-2">
       <div>
         <h2 className="font-display text-2xl font-light text-foreground">Избранное</h2>
-        <p className="text-muted-foreground text-sm font-body mt-1">Сохранённые образы</p>
+        <p className="text-muted-foreground text-sm font-body mt-1">Сохранённые товары</p>
       </div>
 
-      <div className="space-y-3">
-        {favoritesItems.map((fav, i) => (
-          <div key={i} className="glass rounded-2xl overflow-hidden hover:glass-active transition-all duration-300 group">
-            <div className="flex gap-4 p-4">
-              <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
-                <img src={CLOTHES_IMG} alt={fav.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-body font-semibold text-foreground">{fav.name}</h3>
-                  <button className="text-teal/60 hover:text-teal transition-colors">
-                    <Icon name="Heart" size={16} className="fill-current" />
-                  </button>
-                </div>
-                <p className="text-xs font-body text-muted-foreground mb-2">{fav.items}</p>
-                <p className="text-[10px] text-muted-foreground/60 font-body">Сохранено {fav.saved}</p>
-              </div>
-            </div>
-            <div className="border-t border-white/5 px-4 py-2.5 flex items-center gap-3">
-              <button className="text-xs font-body text-teal hover:text-teal/80 transition-colors">Примерить снова</button>
-              <span className="text-white/10">·</span>
-              <button className="text-xs font-body text-muted-foreground hover:text-foreground transition-colors">Поделиться</button>
-              <span className="text-white/10">·</span>
-              <button className="text-xs font-body text-muted-foreground hover:text-destructive transition-colors">Удалить</button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {favorites.length === 0 ? (
+        <div className="glass rounded-2xl p-10 flex flex-col items-center gap-3 text-center">
+          <Icon name="Heart" size={32} className="text-muted-foreground/40" />
+          <p className="font-body text-muted-foreground text-sm">Пока ничего нет</p>
+          <p className="font-body text-muted-foreground/60 text-xs">Отсканируйте товар и нажмите ♥ в истории</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {favorites.map((fav) => (
+            <ProductCard key={fav.id} product={fav} onToggleFavorite={toggleFavorite} onRemove={removeProduct} />
+          ))}
+        </div>
+      )}
 
-      <button className="w-full glass rounded-2xl p-4 flex items-center justify-center gap-2 border border-dashed border-white/10 hover:glass-active transition-all">
-        <Icon name="Plus" size={16} className="text-muted-foreground" />
-        <span className="font-body text-sm text-muted-foreground">Создать новый образ</span>
-      </button>
+      <div className="glass rounded-2xl p-4">
+        <p className="text-xs font-body text-muted-foreground/60 text-center">
+          Нажмите ♥ в истории, чтобы добавить товар сюда
+        </p>
+      </div>
     </div>
   );
 }
 
 export function HistorySection() {
-  const fitColors: Record<string, string> = {
-    "Идеально": "text-teal",
-    "Хорошо": "text-green-400",
-    "Маловато": "text-amber-400",
+  const { scannedProducts, toggleFavorite, removeProduct } = useAppContext();
+
+  const formatDate = (date: Date) => {
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diff < 60) return "Только что";
+    if (diff < 3600) return `${Math.floor(diff / 60)} мин. назад`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} ч. назад`;
+    if (diff < 172800) return "Вчера";
+    return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
   };
 
   return (
     <div className="animate-fade-in space-y-5 pt-2">
       <div>
         <h2 className="font-display text-2xl font-light text-foreground">История</h2>
-        <p className="text-muted-foreground text-sm font-body mt-1">Ранее примеренные вещи</p>
+        <p className="text-muted-foreground text-sm font-body mt-1">Ранее добавленные товары</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Примерок", value: "24" },
-          { label: "Идеально", value: "14" },
-          { label: "Куплено", value: "7" },
+          { label: "Добавлено", value: String(scannedProducts.length) },
+          { label: "В избранном", value: String(scannedProducts.filter(p => p.favorited).length) },
+          { label: "Магазинов", value: String(new Set(scannedProducts.map(p => p.marketplace)).size) },
         ].map((s, i) => (
           <div key={i} className="glass rounded-xl p-3 text-center">
             <p className="text-2xl font-display font-light text-teal">{s.value}</p>
@@ -263,24 +258,94 @@ export function HistorySection() {
         ))}
       </div>
 
-      <div className="space-y-2">
-        {historyItems.map((item, i) => (
-          <div key={i} className="glass rounded-xl p-4 flex items-center gap-4 hover:glass-active transition-all duration-300">
-            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-              <img src={CLOTHES_IMG} alt={item.name} className="w-full h-full object-cover" />
+      {scannedProducts.length === 0 ? (
+        <div className="glass rounded-2xl p-10 flex flex-col items-center gap-3 text-center">
+          <Icon name="Clock" size={32} className="text-muted-foreground/40" />
+          <p className="font-body text-muted-foreground text-sm">История пуста</p>
+          <p className="font-body text-muted-foreground/60 text-xs">Отсканируйте первый товар в разделе «Скан»</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {scannedProducts.map((item) => (
+            <div key={item.id} className="glass rounded-xl p-4 flex items-center gap-4 hover:glass-active transition-all duration-300">
+              <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                {item.image ? (
+                  <img src={item.image} alt={item.name} className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Icon name="Shirt" size={18} className="text-muted-foreground/40" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-body font-medium text-foreground text-sm truncate">{item.name}</p>
+                <p className="text-xs font-body text-muted-foreground">{item.marketplace} · {formatDate(item.addedAt)}</p>
+              </div>
+              <span className="text-teal font-body text-xs font-medium flex-shrink-0">{item.price}</span>
+              <button
+                onClick={() => toggleFavorite(item.id)}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
+                  item.favorited ? "glass-active" : "glass hover:glass-active"
+                }`}
+              >
+                <Icon name="Heart" size={13} className={item.favorited ? "text-teal fill-current" : "text-muted-foreground"} />
+              </button>
+              <button
+                onClick={() => removeProduct(item.id)}
+                className="glass w-8 h-8 rounded-lg flex items-center justify-center hover:bg-destructive/10 transition-all flex-shrink-0"
+              >
+                <Icon name="Trash2" size={13} className="text-muted-foreground hover:text-destructive" />
+              </button>
             </div>
-            <div className="flex-1">
-              <p className="font-body font-medium text-foreground text-sm">{item.name}</p>
-              <p className="text-xs font-body text-muted-foreground">{item.date}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductCard({ product, onToggleFavorite, onRemove }: {
+  product: ScannedProduct;
+  onToggleFavorite: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="glass rounded-2xl overflow-hidden hover:glass-active transition-all duration-300 group">
+      <div className="flex gap-4 p-4">
+        <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-white/5">
+          {product.image ? (
+            <img src={product.image} alt={product.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Icon name="Shirt" size={24} className="text-muted-foreground/40" />
             </div>
-            <span className={`text-xs font-body font-medium ${fitColors[item.fit] || "text-muted-foreground"}`}>
-              {item.fit}
-            </span>
-            <button className="glass w-8 h-8 rounded-lg flex items-center justify-center hover:glass-active transition-all">
-              <Icon name="RotateCcw" size={12} className="text-muted-foreground" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between mb-1 gap-2">
+            <h3 className="font-body font-semibold text-foreground text-sm leading-snug line-clamp-2">{product.name}</h3>
+            <button onClick={() => onToggleFavorite(product.id)} className="text-teal hover:text-teal/80 transition-colors flex-shrink-0 mt-0.5">
+              <Icon name="Heart" size={16} className="fill-current" />
             </button>
           </div>
-        ))}
+          {product.brand && <p className="text-xs font-body text-muted-foreground">{product.brand}</p>}
+          <p className="text-teal font-body font-bold text-sm mt-1">{product.price}</p>
+          <p className="text-[10px] text-muted-foreground/60 font-body mt-0.5">{product.marketplace}</p>
+        </div>
+      </div>
+      <div className="border-t border-white/5 px-4 py-2.5 flex items-center gap-3">
+        <button className="text-xs font-body text-teal hover:text-teal/80 transition-colors">Примерить снова</button>
+        <span className="text-white/10">·</span>
+        <button
+          onClick={() => onRemove(product.id)}
+          className="text-xs font-body text-muted-foreground hover:text-destructive transition-colors"
+        >
+          Удалить
+        </button>
       </div>
     </div>
   );
